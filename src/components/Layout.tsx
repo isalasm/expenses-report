@@ -8,7 +8,7 @@ export const Layout: React.FC = () => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <header className="glass-panel" style={{ margin: '16px', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <header className="glass-panel" style={{ margin: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{
                         background: 'linear-gradient(135deg, var(--accent-color), var(--accent-hover))',
@@ -62,8 +62,15 @@ export const Layout: React.FC = () => {
             </main>
 
             <style>{`
+        header.glass-panel {
+          padding: 16px 24px;
+        }
         @media (max-width: 600px) {
           .hide-mobile { display: none; }
+          header.glass-panel {
+            padding: 12px 16px;
+            margin: 12px;
+          }
         }
       `}</style>
         </div>

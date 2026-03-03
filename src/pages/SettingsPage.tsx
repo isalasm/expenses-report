@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import type { TabConfig, HeaderMap } from '../context/SettingsContext';
-import { Save, CheckCircle, Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Save, CheckCircle, Plus, Trash2, ChevronDown, ChevronRight, Share, CheckCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleSheetsService } from '../services/GoogleSheetsService';
 
@@ -26,6 +26,7 @@ export const SettingsPage: React.FC = () => {
 
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+    const [copiedShareLink, setCopiedShareLink] = useState(false);
 
     useEffect(() => {
         setSheetUrl(settings.sheetUrl);
@@ -33,6 +34,27 @@ export const SettingsPage: React.FC = () => {
         setLocalCurrency(settings.localCurrency || 'USD');
         setTabs(settings.tabs || []);
     }, [settings]);
+
+    const handleExportSettings = () => {
+        try {
+            const configObj = {
+                sheetUrl,
+                localCurrency,
+                facturationStartDay: Number(startDay),
+                tabs
+            };
+            const configB64 = btoa(JSON.stringify(configObj));
+            const exportUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?config=${configB64}${window.location.hash}`;
+
+            navigator.clipboard.writeText(exportUrl).then(() => {
+                setCopiedShareLink(true);
+                setTimeout(() => setCopiedShareLink(false), 3000);
+            });
+        } catch (e) {
+            console.error('Failed to export settings', e);
+            setError('Failed to generate export link. Ensure all settings are valid.');
+        }
+    };
 
     const handleAddTab = () => {
         const newTab: TabConfig = {
@@ -266,10 +288,43 @@ export const SettingsPage: React.FC = () => {
                     </div>
                 </div>
 
-                <button type="submit" className="btn" style={{ marginTop: '10px', alignSelf: 'flex-start' }}>
-                    <Save size={18} />
-                    Save Settings
-                </button>
+                {/* Submit Row */}
+                <div style={{ display: 'flex', gap: '16px', marginTop: '10px' }}>
+                    {settings.sheetUrl && (
+                        <button
+                            type="button"
+                            onClick={handleExportSettings}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                                padding: '12px 24px', borderRadius: '8px',
+                                background: copiedShareLink ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                                color: copiedShareLink ? 'var(--success-color)' : 'var(--text-secondary)',
+                                border: copiedShareLink ? '1px solid var(--success-color)' : '1px solid var(--panel-border)',
+                                fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', flex: 1, justifyContent: 'center'
+                            }}
+                            onMouseEnter={(e) => {
+                                if (!copiedShareLink) {
+                                    e.currentTarget.style.color = '#fff';
+                                    e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!copiedShareLink) {
+                                    e.currentTarget.style.color = 'var(--text-secondary)';
+                                    e.currentTarget.style.background = 'transparent';
+                                }
+                            }}
+                        >
+                            {copiedShareLink ? <CheckCheck size={20} /> : <Share size={20} />}
+                            {copiedShareLink ? 'Link Copied!' : 'Export Config Link'}
+                        </button>
+                    )}
+
+                    <button type="submit" className="btn" style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+                        <Save size={18} />
+                        Save Settings
+                    </button>
+                </div>
 
             </form>
         </div>

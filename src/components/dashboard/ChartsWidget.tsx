@@ -47,37 +47,64 @@ export const ChartsWidget: React.FC<ChartsWidgetProps> = ({ data, currency }) =>
         }).format(Number(val || 0));
     };
 
+    const totalCategoryValue = useMemo(() => {
+        return categoryData.reduce((acc, curr) => acc + curr.value, 0);
+    }, [categoryData]);
+
     if (data.length === 0) return null;
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '24px' }}>
 
-            <div className="glass-panel" style={{ padding: '24px' }}>
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
                 <h3 style={{ marginTop: 0, fontWeight: 500, color: 'var(--text-secondary)', textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '1px' }}>Expenses by Category</h3>
-                <div style={{ height: '300px' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <Pie
-                                data={categoryData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={70}
-                                outerRadius={100}
-                                paddingAngle={5}
-                                dataKey="value"
-                                stroke="none"
-                            >
-                                {categoryData.map((_, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip
-                                contentStyle={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)', borderRadius: '12px', color: '#fff', backdropFilter: 'blur(10px)' }}
-                                itemStyle={{ color: '#fff' }}
-                                formatter={formatCurrency}
-                            />
-                        </PieChart>
-                    </ResponsiveContainer>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'center', flex: 1 }}>
+                    <div style={{ height: '220px', flex: '1 1 200px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={categoryData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={100}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                    stroke="none"
+                                >
+                                    {categoryData.map((_, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip
+                                    contentStyle={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)', borderRadius: '12px', color: '#fff', backdropFilter: 'blur(10px)' }}
+                                    itemStyle={{ color: '#fff' }}
+                                    formatter={formatCurrency}
+                                />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '220px', overflowY: 'auto', paddingRight: '8px' }}>
+                        {categoryData.map((entry, index) => {
+                            const percent = ((entry.value / totalCategoryValue) * 100).toFixed(1);
+                            return (
+                                <div key={entry.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                                        <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: COLORS[index % COLORS.length], flexShrink: 0 }} />
+                                        <span style={{ color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={entry.name}>
+                                            {entry.name}
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexShrink: 0 }}>
+                                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{percent}%</span>
+                                        <span style={{ fontWeight: 600 }}>{formatCurrency(entry.value)}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 

@@ -6,7 +6,7 @@ import { getCurrentFacturationPeriod, isDateInPeriod } from '../utils/dateUtils'
 import { SummaryWidget } from '../components/dashboard/SummaryWidget';
 import { ChartsWidget } from '../components/dashboard/ChartsWidget';
 import { TransactionsList } from '../components/dashboard/TransactionsList';
-import { RefreshCw, Calendar, ChevronLeft, ChevronRight, Filter, Globe } from 'lucide-react';
+import { RefreshCw, Calendar, ChevronLeft, ChevronRight, Filter, Globe, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, addMonths, subMonths } from 'date-fns';
 
 export const DashboardPage: React.FC = () => {
@@ -23,6 +23,7 @@ export const DashboardPage: React.FC = () => {
     const [monthOffset, setMonthOffset] = useState(0);
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
     const [selectedOwner, setSelectedOwner] = useState<string>('All');
+    const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
     const fetchData = async () => {
         try {
@@ -190,7 +191,7 @@ export const DashboardPage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px', marginBottom: '32px' }}>
 
                 {/* Tabs */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '6px', borderRadius: '12px', border: '1px solid var(--panel-border)' }}>
+                <div className="scroll-x-mobile" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '6px', borderRadius: '12px', border: '1px solid var(--panel-border)' }}>
                     <button
                         onClick={() => setActiveTabId('summary')}
                         style={{
@@ -239,12 +240,12 @@ export const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Period info & Navigation */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', background: 'var(--panel-bg)', padding: '6px 12px', borderRadius: '10px', border: '1px solid var(--panel-border)', backdropFilter: 'blur(10px)' }}>
+                <div className="period-nav" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', background: 'var(--panel-bg)', padding: '6px 12px', borderRadius: '10px', border: '1px solid var(--panel-border)', backdropFilter: 'blur(10px)' }}>
                     <button onClick={() => setMonthOffset(prev => prev - 1)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px', display: 'flex' }} title="Previous Month">
                         <ChevronLeft size={20} />
                     </button>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 8px' }}>
+                    <div className="period-nav-dates" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 8px' }}>
                         <Calendar size={18} />
                         <span style={{ fontSize: '0.9rem' }}>
                             <strong style={{ color: 'var(--text-primary)' }}>{format(period.start, 'MMM dd')}</strong> - <strong style={{ color: 'var(--text-primary)' }}>{format(period.end, 'MMM dd, yyyy')}</strong>
@@ -255,7 +256,7 @@ export const DashboardPage: React.FC = () => {
                         <ChevronRight size={20} />
                     </button>
 
-                    <div style={{ width: '1px', height: '20px', background: 'var(--panel-border)', margin: '0 4px' }}></div>
+                    <div className="period-nav-divider" style={{ width: '1px', height: '20px', background: 'var(--panel-border)', margin: '0 4px' }}></div>
 
                     <button onClick={() => { fetchData(); setMonthOffset(0); }} title="Refresh data & reset period" style={{ background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', padding: '4px', display: 'flex' }}>
                         <RefreshCw size={18} />
@@ -264,53 +265,78 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             {/* Filters Row */}
-            <div className="glass-panel" style={{ display: 'flex', gap: '16px', padding: '16px 20px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
-                    <Filter size={18} />
-                    <span style={{ fontSize: '0.9rem', fontWeight: 500, marginRight: '8px' }}>Filters:</span>
+            <div className="glass-panel" style={{ padding: '16px 20px', marginBottom: '24px' }}>
+                <div
+                    onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Filter size={18} />
+                        <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>Filters {(selectedCategory !== 'All' || selectedOwner !== 'All') ? '(Active)' : ''}</span>
+                    </div>
+                    <div className="mobile-only-icon" style={{ display: 'flex' }}>
+                        {isFiltersOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Category</label>
-                    <select
-                        value={selectedCategory}
-                        onChange={(e) => setSelectedCategory(e.target.value)}
-                        style={{ background: 'rgba(0,0,0,0.3)', color: 'var(--text-primary)', border: '1px solid var(--panel-border)', borderRadius: '6px', padding: '6px 10px', outline: 'none', fontFamily: 'var(--font-family)', fontSize: '0.9rem' }}
-                    >
-                        {uniqueCategories.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                    </select>
-                </div>
+                <div className="filters-content-desktop" style={{
+                    display: isFiltersOpen ? 'flex' : 'none',
+                    gap: '16px',
+                    marginTop: '16px',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    borderTop: '1px solid rgba(255,255,255,0.05)',
+                    paddingTop: '16px'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Category</label>
+                        <select
+                            value={selectedCategory}
+                            onChange={(e) => setSelectedCategory(e.target.value)}
+                            style={{ background: 'rgba(0,0,0,0.3)', color: 'var(--text-primary)', border: '1px solid var(--panel-border)', borderRadius: '6px', padding: '6px 10px', outline: 'none', fontFamily: 'var(--font-family)', fontSize: '0.9rem' }}
+                        >
+                            {uniqueCategories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                    </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Owner</label>
-                    <select
-                        value={selectedOwner}
-                        onChange={(e) => setSelectedOwner(e.target.value)}
-                        style={{ background: 'rgba(0,0,0,0.3)', color: 'var(--text-primary)', border: '1px solid var(--panel-border)', borderRadius: '6px', padding: '6px 10px', outline: 'none', fontFamily: 'var(--font-family)', fontSize: '0.9rem' }}
-                    >
-                        {uniqueOwners.map(owner => (
-                            <option key={owner} value={owner}>{owner}</option>
-                        ))}
-                    </select>
-                </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Owner</label>
+                        <select
+                            value={selectedOwner}
+                            onChange={(e) => setSelectedOwner(e.target.value)}
+                            style={{ background: 'rgba(0,0,0,0.3)', color: 'var(--text-primary)', border: '1px solid var(--panel-border)', borderRadius: '6px', padding: '6px 10px', outline: 'none', fontFamily: 'var(--font-family)', fontSize: '0.9rem' }}
+                        >
+                            {uniqueOwners.map(owner => (
+                                <option key={owner} value={owner}>{owner}</option>
+                            ))}
+                        </select>
+                    </div>
 
-                {(selectedCategory !== 'All' || selectedOwner !== 'All') && (
-                    <button
-                        onClick={() => { setSelectedCategory('All'); setSelectedOwner('All'); }}
-                        style={{ background: 'transparent', border: '1px solid var(--panel-border)', color: 'var(--text-secondary)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', marginLeft: 'auto', transition: 'all 0.2s' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}
-                    >
-                        Clear Filters
-                    </button>
-                )}
+                    {(selectedCategory !== 'All' || selectedOwner !== 'All') && (
+                        <button
+                            onClick={() => { setSelectedCategory('All'); setSelectedOwner('All'); }}
+                            style={{ background: 'transparent', border: '1px solid var(--panel-border)', color: 'var(--text-secondary)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', marginLeft: 'auto', transition: 'all 0.2s' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}
+                        >
+                            Clear Filters
+                        </button>
+                    )}
+                </div>
             </div>
 
             <SummaryWidget totalAmount={totalSpend} transactionCount={filteredData.length} currency={currentCurrency} />
-            <ChartsWidget data={filteredData} currency={currentCurrency} />
-            <TransactionsList data={filteredData} currency={currentCurrency} isSummary={activeTabId === 'summary'} />
+
+            <div className="swipe-container">
+                <div className="swipe-item">
+                    <TransactionsList data={filteredData} currency={currentCurrency} isSummary={activeTabId === 'summary'} />
+                </div>
+                <div className="swipe-item">
+                    <ChartsWidget data={filteredData} currency={currentCurrency} />
+                </div>
+            </div>
 
         </div>
     );

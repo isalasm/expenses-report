@@ -10,6 +10,22 @@ export interface ExpenseRow {
     Descipcion: string;
 }
 
+export interface TabConfig {
+    id: string;
+    name: string;
+    sheetName: string;
+    currency: string;
+    headerMap: HeaderMap;
+    customLocalRate?: number;
+}
+
+export interface SpreadsheetSettings {
+    sheetUrl: string;
+    localCurrency: string;
+    startDay: number;
+    tabs: TabConfig[];
+}
+
 export class GoogleSheetsService {
 
     /**

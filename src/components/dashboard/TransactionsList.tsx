@@ -41,48 +41,47 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({ data, curren
         <div className="glass-panel" style={{ padding: '24px', overflowX: 'auto' }}>
             <h3 style={{ marginTop: 0, marginBottom: '20px', fontWeight: 500, color: 'var(--text-secondary)', textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '1px' }}>Recent Transactions</h3>
 
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
-                <thead>
-                    <tr style={{ borderBottom: '1px solid var(--panel-border)', color: 'var(--text-secondary)' }}>
-                        <th style={{ padding: '12px 8px', fontWeight: 500 }}>Date</th>
-                        <th style={{ padding: '12px 8px', fontWeight: 500 }}>Category</th>
-                        <th style={{ padding: '12px 8px', fontWeight: 500 }}>Description</th>
-                        <th style={{ padding: '12px 8px', fontWeight: 500 }}>Owner</th>
-                        <th style={{ padding: '12px 8px', fontWeight: 500, textAlign: 'right' }}>Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <div style={{ minWidth: '100%' }}>
+                <div className="data-grid-header data-grid">
+                    <div>Date</div>
+                    <div>Category</div>
+                    <div>Description</div>
+                    <div>Owner</div>
+                    <div style={{ textAlign: 'right' }}>Amount</div>
+                </div>
+                <div>
                     {sortedData.map((row, idx) => (
-                        <tr key={row.ID || idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                            <td style={{ padding: '16px 8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                        <div key={row.ID || idx} className="data-grid">
+                            <div className="cell-date">
                                 {formatDate(row.Fecha)}
-                            </td>
-                            <td style={{ padding: '16px 8px' }}>
+                            </div>
+                            <div className="cell-category">
                                 <span style={{
                                     background: 'rgba(139, 92, 246, 0.1)',
                                     color: 'var(--accent-hover)',
                                     padding: '4px 10px',
                                     borderRadius: '12px',
                                     fontSize: '0.8rem',
-                                    fontWeight: 600
+                                    fontWeight: 600,
+                                    display: 'inline-block'
                                 }}>
                                     {row.Categoría || 'N/A'}
                                 </span>
-                            </td>
-                            <td style={{ padding: '16px 8px' }}>{row.Descipcion || '-'}</td>
-                            <td style={{ padding: '16px 8px' }}>{row.Dueño || '-'}</td>
-                            <td style={{ padding: '16px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            </div>
+                            <div className="cell-desc">{row.Descipcion || '-'}</div>
+                            <div className="cell-owner">{row.Dueño || '-'}</div>
+                            <div className="cell-amount" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                                 <div>{formatCurrency(row.Gasto)}</div>
                                 {isSummary && (row as any)._originalCurrency && (row as any)._originalCurrency !== currency && (
                                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 'normal', marginTop: '4px' }}>
                                         (from {(row as any)._originalCurrency})
                                     </div>
                                 )}
-                            </td>
-                        </tr>
+                            </div>
+                        </div>
                     ))}
-                </tbody>
-            </table>
+                </div>
+            </div>
         </div>
     );
 };

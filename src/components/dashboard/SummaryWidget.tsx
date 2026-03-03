@@ -17,25 +17,25 @@ export const SummaryWidget: React.FC<SummaryWidgetProps> = ({ totalAmount, trans
     };
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+        <div className="summary-grid">
 
-            <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <div style={{ background: 'rgba(139, 92, 246, 0.2)', padding: '16px', borderRadius: '50%', color: 'var(--accent-color)' }}>
-                    <DollarSign size={28} />
+            <div className="glass-panel metric-card">
+                <div className="metric-icon" style={{ background: 'rgba(139, 92, 246, 0.2)', color: 'var(--accent-color)' }}>
+                    <DollarSign size={24} />
                 </div>
                 <div>
-                    <p style={{ margin: 0, fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-secondary)' }}>Total Spend</p>
-                    <h2 style={{ margin: '4px 0 0 0', fontSize: '2rem' }}>{formatCurrency(totalAmount)}</h2>
+                    <p className="metric-title">Total Spend</p>
+                    <h2 className="metric-value">{formatCurrency(totalAmount)}</h2>
                 </div>
             </div>
 
-            <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <div style={{ background: 'rgba(16, 185, 129, 0.2)', padding: '16px', borderRadius: '50%', color: 'var(--success-color)' }}>
-                    <Activity size={28} />
+            <div className="glass-panel metric-card">
+                <div className="metric-icon" style={{ background: 'rgba(16, 185, 129, 0.2)', color: 'var(--success-color)' }}>
+                    <Activity size={24} />
                 </div>
                 <div>
-                    <p style={{ margin: 0, fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-secondary)' }}>Transactions</p>
-                    <h2 style={{ margin: '4px 0 0 0', fontSize: '2rem' }}>{transactionCount}</h2>
+                    <p className="metric-title">Transactions</p>
+                    <h2 className="metric-value">{transactionCount}</h2>
                 </div>
             </div>
 
