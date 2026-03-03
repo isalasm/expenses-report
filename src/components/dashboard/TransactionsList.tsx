@@ -5,14 +5,15 @@ import { format, parseISO } from 'date-fns';
 interface TransactionsListProps {
     data: ExpenseRow[];
     currency: string;
+    isSummary?: boolean;
 }
 
-export const TransactionsList: React.FC<TransactionsListProps> = ({ data, currency }) => {
+export const TransactionsList: React.FC<TransactionsListProps> = ({ data, currency, isSummary }) => {
     const formatCurrency = (val: number) => {
-        return new Intl.NumberFormat('es-CL', {
+        return new Intl.NumberFormat(undefined, {
             style: 'currency',
-            currency: currency === 'nacional' ? 'CLP' : 'USD',
-            maximumFractionDigits: currency === 'nacional' ? 0 : 2
+            currency: currency || 'USD',
+            maximumFractionDigits: currency === 'CLP' ? 0 : 2
         }).format(val);
     };
 
@@ -71,7 +72,12 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({ data, curren
                             <td style={{ padding: '16px 8px' }}>{row.Descipcion || '-'}</td>
                             <td style={{ padding: '16px 8px' }}>{row.Dueño || '-'}</td>
                             <td style={{ padding: '16px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                {formatCurrency(row.Gasto)}
+                                <div>{formatCurrency(row.Gasto)}</div>
+                                {isSummary && (row as any)._originalCurrency && (row as any)._originalCurrency !== currency && (
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 'normal', marginTop: '4px' }}>
+                                        (from {(row as any)._originalCurrency})
+                                    </div>
+                                )}
                             </td>
                         </tr>
                     ))}

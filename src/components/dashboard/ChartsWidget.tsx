@@ -5,11 +5,12 @@ import { format, parseISO } from 'date-fns';
 
 interface ChartsWidgetProps {
     data: ExpenseRow[];
+    currency: string;
 }
 
 const COLORS = ['#8b5cf6', '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#ec4899', '#6366f1'];
 
-export const ChartsWidget: React.FC<ChartsWidgetProps> = ({ data }) => {
+export const ChartsWidget: React.FC<ChartsWidgetProps> = ({ data, currency }) => {
     const categoryData = useMemo(() => {
         const grouped = data.reduce((acc, curr) => {
             const cat = curr.Categoría || 'Uncategorized';
@@ -38,6 +39,14 @@ export const ChartsWidget: React.FC<ChartsWidgetProps> = ({ data }) => {
             .map(([date, amount]) => ({ date, amount }));
     }, [data]);
 
+    const formatCurrency = (val: number | string | undefined) => {
+        return new Intl.NumberFormat(undefined, {
+            style: 'currency',
+            currency: currency || 'USD',
+            maximumFractionDigits: currency === 'CLP' ? 0 : 2
+        }).format(Number(val || 0));
+    };
+
     if (data.length === 0) return null;
 
     return (
@@ -65,7 +74,7 @@ export const ChartsWidget: React.FC<ChartsWidgetProps> = ({ data }) => {
                             <Tooltip
                                 contentStyle={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)', borderRadius: '12px', color: '#fff', backdropFilter: 'blur(10px)' }}
                                 itemStyle={{ color: '#fff' }}
-                                formatter={(value: number | string | undefined) => `$${Number(value || 0).toLocaleString()}`}
+                                formatter={formatCurrency}
                             />
                         </PieChart>
                     </ResponsiveContainer>
@@ -79,11 +88,11 @@ export const ChartsWidget: React.FC<ChartsWidgetProps> = ({ data }) => {
                         <BarChart data={timelineData}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                             <XAxis dataKey="date" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                            <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} width={60} />
+                            <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={formatCurrency} width={80} />
                             <Tooltip
                                 cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                                 contentStyle={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)', borderRadius: '12px', color: '#fff', backdropFilter: 'blur(10px)' }}
-                                formatter={(value: number | string | undefined) => [`$${Number(value || 0).toLocaleString()}`, 'Amount']}
+                                formatter={(value) => [formatCurrency(Array.isArray(value) ? value[0] : value as string | number), 'Amount']}
                             />
                             <Bar dataKey="amount" fill="var(--accent-color)" radius={[4, 4, 0, 0]} />
                         </BarChart>

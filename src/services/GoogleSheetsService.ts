@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import type { HeaderMap } from '../context/SettingsContext';
 
 export interface ExpenseRow {
     ID: string;
@@ -29,7 +30,7 @@ export class GoogleSheetsService {
      * Fetches data from a specific sheet in the Google Spreadsheet
      * User's sheet must be shared as "Anyone with the link can view".
      */
-    static async fetchExpenses(spreadsheetId: string, sheetName: string): Promise<ExpenseRow[]> {
+    static async fetchExpenses(spreadsheetId: string, sheetName: string, headers: HeaderMap): Promise<ExpenseRow[]> {
         if (!spreadsheetId) {
             throw new Error("Invalid Spreadsheet ID");
         }
@@ -52,21 +53,44 @@ export class GoogleSheetsService {
                     complete: (results) => {
                         // Clean up parsing issues, standardize numbers
                         const parsedData = results.data
-                            .filter((row: any) => row.ID && row.Fecha) // Filter out empty validation rows
+                            .filter((row: any) => row[headers.id] && row[headers.date]) // Filter out empty validation rows
                             .map((row: any) => {
                                 // Ensure proper numeric conversion
-                                let gastoRaw = row.Gasto;
+                                let gastoRaw = row[headers.amount];
                                 if (typeof gastoRaw === 'string') {
-                                    gastoRaw = gastoRaw.replace(/[^0-9.-]+/g, ""); // strip non-numeric (e.g., $ signs)
+                                    // Remove spaces and currency symbols first
+                                    gastoRaw = gastoRaw.replace(/[^0-9.,-]+/g, "");
+
+                                    // If we have both dot and comma (e.g. 1.234,56 or 1,234.56)
+                                    if (gastoRaw.includes('.') && gastoRaw.includes(',')) {
+                                        const lastDot = gastoRaw.lastIndexOf('.');
+                                        const lastComma = gastoRaw.lastIndexOf(',');
+                                        if (lastComma > lastDot) {
+                                            // Format like 1.234,56 -> remove dots, change comma to dot
+                                            gastoRaw = gastoRaw.replace(/\./g, '').replace(',', '.');
+                                        } else {
+                                            // Format like 1,234.56 -> remove commas
+                                            gastoRaw = gastoRaw.replace(/,/g, '');
+                                        }
+                                    } else if (gastoRaw.includes(',')) {
+                                        // Only comma, treat as decimal (e.g. 23,8)
+                                        // But if there are multiple commas (e.g. 1,234,567), we should remove them
+                                        const commaCount = (gastoRaw.match(/,/g) || []).length;
+                                        if (commaCount === 1) {
+                                            gastoRaw = gastoRaw.replace(',', '.');
+                                        } else {
+                                            gastoRaw = gastoRaw.replace(/,/g, '');
+                                        }
+                                    }
                                 }
 
                                 return {
-                                    ID: String(row.ID || '').trim(),
-                                    Fecha: String(row.Fecha || '').trim(),
+                                    ID: String(row[headers.id] || '').trim(),
+                                    Fecha: String(row[headers.date] || '').trim(),
                                     Gasto: parseFloat(gastoRaw) || 0,
-                                    Dueño: String(row.Dueño || '').trim(),
-                                    Categoría: String(row.Categoría || '').trim(),
-                                    Descipcion: String(row.Descipcion || '').trim()
+                                    Dueño: String(row[headers.owner] || '').trim(),
+                                    Categoría: String(row[headers.category] || '').trim(),
+                                    Descipcion: String(row[headers.description] || '').trim()
                                 };
                             });
                         resolve(parsedData);

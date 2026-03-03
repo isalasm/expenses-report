@@ -6,18 +6,20 @@ import { getCurrentFacturationPeriod, isDateInPeriod } from '../utils/dateUtils'
 import { SummaryWidget } from '../components/dashboard/SummaryWidget';
 import { ChartsWidget } from '../components/dashboard/ChartsWidget';
 import { TransactionsList } from '../components/dashboard/TransactionsList';
-import { RefreshCw, Calendar, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { RefreshCw, Calendar, ChevronLeft, ChevronRight, Filter, Globe } from 'lucide-react';
 import { format, addMonths, subMonths } from 'date-fns';
 
 export const DashboardPage: React.FC = () => {
     const { settings } = useSettings();
-    const [activeTab, setActiveTab] = useState<'nacional' | 'internacional'>('nacional');
-    const [dataNacional, setDataNacional] = useState<ExpenseRow[]>([]);
-    const [dataInternacional, setDataInternacional] = useState<ExpenseRow[]>([]);
+    const [activeTabId, setActiveTabId] = useState<string>('summary'); // 'summary' or a tab.id
+
+    const [dataByTab, setDataByTab] = useState<Record<string, ExpenseRow[]>>({});
+    const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // New Filter States
+    // Filter States
     const [monthOffset, setMonthOffset] = useState(0);
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
     const [selectedOwner, setSelectedOwner] = useState<string>('All');
@@ -29,13 +31,37 @@ export const DashboardPage: React.FC = () => {
             const spreadsheetId = GoogleSheetsService.extractSpreadsheetId(settings.sheetUrl);
             if (!spreadsheetId) throw new Error('Invalid URL in settings');
 
-            const [nacional, internacional] = await Promise.all([
-                GoogleSheetsService.fetchExpenses(spreadsheetId, 'nacional'),
-                GoogleSheetsService.fetchExpenses(spreadsheetId, 'internacional')
-            ]);
+            // Fetch exchange rates
+            try {
+                if (settings.localCurrency) {
+                    const rateRes = await fetch(`https://api.exchangerate-api.com/v4/latest/${settings.localCurrency}`);
+                    if (rateRes.ok) {
+                        const rateData = await rateRes.json();
+                        setExchangeRates(rateData.rates || {});
+                    }
+                }
+            } catch (e) {
+                console.warn("Failed to fetch exchange rates, will fallback to custom rates or 1.");
+            }
 
-            setDataNacional(nacional);
-            setDataInternacional(internacional);
+            // Fetch Sheets
+            const promises = settings.tabs.map(tab =>
+                GoogleSheetsService.fetchExpenses(spreadsheetId, tab.name, tab.headers)
+                    .then(data => ({ id: tab.id, data }))
+            );
+
+            const results = await Promise.all(promises);
+            const newData: Record<string, ExpenseRow[]> = {};
+            results.forEach(res => {
+                newData[res.id] = res.data;
+            });
+
+            setDataByTab(newData);
+
+            // If active tab was deleted from settings, fallback to summary
+            if (activeTabId !== 'summary' && !settings.tabs.find(t => t.id === activeTabId)) {
+                setActiveTabId('summary');
+            }
         } catch (err: any) {
             setError(err.message || 'Failed to fetch data');
         } finally {
@@ -44,10 +70,10 @@ export const DashboardPage: React.FC = () => {
     };
 
     useEffect(() => {
-        if (settings.sheetUrl) {
+        if (settings.sheetUrl && settings.tabs.length > 0) {
             fetchData();
         }
-    }, [settings.sheetUrl]);
+    }, [settings.sheetUrl, settings.tabs]);
 
     // Handle Date Filtering with Offset
     const period = useMemo(() => {
@@ -60,32 +86,81 @@ export const DashboardPage: React.FC = () => {
         };
     }, [settings.facturationStartDay, monthOffset]);
 
-    const rawData = activeTab === 'nacional' ? dataNacional : dataInternacional;
 
-    // Extract unique categories and owners for the current tab's data (regardless of date) to populate dropdowns
+    // Data Aggregation
+    const activeData = useMemo(() => {
+        // Returns an array of items, mapping Gasto to local equivalent if in summary mode.
+        if (activeTabId === 'summary') {
+            const allItems: (ExpenseRow & { _originalCurrency: string })[] = [];
+
+            settings.tabs.forEach(tab => {
+                const rows = dataByTab[tab.id] || [];
+
+                // Rate calculation
+                // API rate is how many units of tab.currency = 1 localCurrency
+                let toLocalRate = tab.customLocalRate;
+                if (!toLocalRate) {
+                    const apiRate = exchangeRates[tab.currency];
+                    // If apiRate is e.g. 900 (900 tabCurrency = 1 localCurrency), then 1 tabCurrency = 1/900 localCurrency.
+                    toLocalRate = apiRate ? (1 / apiRate) : 1;
+                }
+
+                rows.forEach(row => {
+                    const inLocal = row.Gasto * toLocalRate!;
+
+                    allItems.push({
+                        ...row,
+                        Gasto: inLocal,
+                        _originalCurrency: tab.currency
+                    });
+                });
+            });
+            return allItems;
+        } else {
+            // Specific tab
+            return dataByTab[activeTabId] || [];
+        }
+    }, [activeTabId, dataByTab, settings.tabs, settings.localCurrency, exchangeRates]);
+
+    // Derive active currency for formatting
+    const currentCurrency = useMemo(() => {
+        if (activeTabId === 'summary') return settings.localCurrency || 'USD';
+        const tab = settings.tabs.find(t => t.id === activeTabId);
+        return tab?.currency || 'USD';
+    }, [activeTabId, settings.tabs, settings.localCurrency]);
+
+    // Extract unique categories and owners for dropdowns
     const uniqueCategories = useMemo(() => {
-        const cats = new Set(rawData.map(r => r.Categoría).filter(Boolean));
+        const cats = new Set(activeData.map(r => r.Categoría).filter(Boolean));
         return ['All', ...Array.from(cats)].sort();
-    }, [rawData]);
+    }, [activeData]);
 
     const uniqueOwners = useMemo(() => {
-        const owners = new Set(rawData.map(r => r.Dueño).filter(Boolean));
+        const owners = new Set(activeData.map(r => r.Dueño).filter(Boolean));
         return ['All', ...Array.from(owners)].sort();
-    }, [rawData]);
+    }, [activeData]);
 
     // Apply all filters: Date, Category, and Owner
     const filteredData = useMemo(() => {
-        return rawData.filter(row => {
+        return activeData.filter(row => {
             const inDate = isDateInPeriod(row.Fecha, period.start, period.end);
             const matchesCat = selectedCategory === 'All' || row.Categoría === selectedCategory;
             const matchesOwner = selectedOwner === 'All' || row.Dueño === selectedOwner;
             return inDate && matchesCat && matchesOwner;
         });
-    }, [rawData, period, selectedCategory, selectedOwner]);
+    }, [activeData, period, selectedCategory, selectedOwner]);
 
     const totalSpend = useMemo(() => {
         return filteredData.reduce((acc, curr) => acc + curr.Gasto, 0);
     }, [filteredData]);
+
+    if (!settings.tabs || settings.tabs.length === 0) {
+        return (
+            <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
+                <p style={{ color: 'var(--text-secondary)' }}>No tabs configured. Please go to settings to map your sheet tabs.</p>
+            </div>
+        );
+    }
 
     if (loading) {
         return (
@@ -115,43 +190,52 @@ export const DashboardPage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px', marginBottom: '32px' }}>
 
                 {/* Tabs */}
-                <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', padding: '6px', borderRadius: '12px', border: '1px solid var(--panel-border)' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '6px', borderRadius: '12px', border: '1px solid var(--panel-border)' }}>
                     <button
-                        onClick={() => setActiveTab('nacional')}
+                        onClick={() => setActiveTabId('summary')}
                         style={{
-                            background: activeTab === 'nacional' ? 'var(--panel-bg)' : 'transparent',
-                            color: activeTab === 'nacional' ? '#fff' : 'var(--text-secondary)',
+                            background: activeTabId === 'summary' ? 'var(--panel-bg)' : 'transparent',
+                            color: activeTabId === 'summary' ? '#fff' : 'var(--text-secondary)',
                             border: '1px solid',
-                            borderColor: activeTab === 'nacional' ? 'rgba(255,255,255,0.15)' : 'transparent',
-                            padding: '10px 24px',
+                            borderColor: activeTabId === 'summary' ? 'rgba(255,255,255,0.15)' : 'transparent',
+                            padding: '8px 16px',
                             borderRadius: '8px',
                             cursor: 'pointer',
                             fontWeight: 600,
                             fontFamily: 'var(--font-family)',
                             transition: 'all 0.2s',
-                            boxShadow: activeTab === 'nacional' ? '0 4px 12px rgba(0,0,0,0.2)' : 'none'
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            boxShadow: activeTabId === 'summary' ? '0 4px 12px rgba(0,0,0,0.2)' : 'none'
                         }}
                     >
-                        Nacional
+                        <Globe size={16} /> Summary ({settings.localCurrency})
                     </button>
-                    <button
-                        onClick={() => setActiveTab('internacional')}
-                        style={{
-                            background: activeTab === 'internacional' ? 'var(--panel-bg)' : 'transparent',
-                            color: activeTab === 'internacional' ? '#fff' : 'var(--text-secondary)',
-                            border: '1px solid',
-                            borderColor: activeTab === 'internacional' ? 'rgba(255,255,255,0.15)' : 'transparent',
-                            padding: '10px 24px',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            fontWeight: 600,
-                            fontFamily: 'var(--font-family)',
-                            transition: 'all 0.2s',
-                            boxShadow: activeTab === 'internacional' ? '0 4px 12px rgba(0,0,0,0.2)' : 'none'
-                        }}
-                    >
-                        Internacional
-                    </button>
+
+                    <div style={{ width: '1px', background: 'var(--panel-border)', margin: '4px 0' }} />
+
+                    {settings.tabs.map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTabId(tab.id)}
+                            style={{
+                                background: activeTabId === tab.id ? 'var(--panel-bg)' : 'transparent',
+                                color: activeTabId === tab.id ? '#fff' : 'var(--text-secondary)',
+                                border: '1px solid',
+                                borderColor: activeTabId === tab.id ? 'rgba(255,255,255,0.15)' : 'transparent',
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                                fontFamily: 'var(--font-family)',
+                                transition: 'all 0.2s',
+                                boxShadow: activeTabId === tab.id ? '0 4px 12px rgba(0,0,0,0.2)' : 'none'
+                            }}
+                        >
+                            {tab.name}
+                        </button>
+                    ))}
                 </div>
 
                 {/* Period info & Navigation */}
@@ -224,9 +308,9 @@ export const DashboardPage: React.FC = () => {
                 )}
             </div>
 
-            <SummaryWidget totalAmount={totalSpend} transactionCount={filteredData.length} currency={activeTab} />
-            <ChartsWidget data={filteredData} />
-            <TransactionsList data={filteredData} currency={activeTab} />
+            <SummaryWidget totalAmount={totalSpend} transactionCount={filteredData.length} currency={currentCurrency} />
+            <ChartsWidget data={filteredData} currency={currentCurrency} />
+            <TransactionsList data={filteredData} currency={currentCurrency} isSummary={activeTabId === 'summary'} />
 
         </div>
     );

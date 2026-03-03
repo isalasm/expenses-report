@@ -9,10 +9,10 @@ interface SummaryWidgetProps {
 
 export const SummaryWidget: React.FC<SummaryWidgetProps> = ({ totalAmount, transactionCount, currency }) => {
     const formatCurrency = (val: number) => {
-        return new Intl.NumberFormat('es-CL', {
+        return new Intl.NumberFormat(undefined, {
             style: 'currency',
-            currency: currency === 'nacional' ? 'CLP' : 'USD',
-            maximumFractionDigits: currency === 'nacional' ? 0 : 2
+            currency: currency || 'USD',
+            maximumFractionDigits: currency === 'CLP' ? 0 : 2
         }).format(val);
     };
 
